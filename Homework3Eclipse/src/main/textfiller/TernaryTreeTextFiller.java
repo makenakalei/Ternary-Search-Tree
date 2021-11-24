@@ -1,11 +1,11 @@
 package main.textfiller;
 
 import java.util.*;
-
+import java.util.ArrayList;
 /**
  * A ternary-search-tree implementation of a text-autocompletion
  * trie, a simplified version of some autocomplete software.
- * @author YOUR_NAME_HERE
+ * @author Makena Robison
  */
 public class TernaryTreeTextFiller implements TextFiller {
 
@@ -13,6 +13,7 @@ public class TernaryTreeTextFiller implements TextFiller {
     // -----------------------------------------------------------
     private TTNode root;
     private int size;
+    private ArrayList<String> words = new ArrayList<String>();
     
     // Constructor
     // -----------------------------------------------------------
@@ -26,27 +27,73 @@ public class TernaryTreeTextFiller implements TextFiller {
     // -----------------------------------------------------------
     
     public int size () {
-        throw new UnsupportedOperationException();
+		return this.size;   	// returns amount of words in the tree.
     }
 
     public boolean empty () {
-        throw new UnsupportedOperationException();
+    	boolean empty = false; //checks if tree is empty
+        if(this.size <= 0) {
+        	empty = true;
+        }
+        return empty;
+        
     }
     
     public void add (String toAdd) {
-        throw new UnsupportedOperationException();
+    	toAdd = normalizeTerm(toAdd); //normalizes string
+    	if(!contains(toAdd)) { //checks if string is in the tree
+	    	int index = 0;
+	    	this.root = build(toAdd, this.root, index); //calls helper
+    	}
     }
     
     public boolean contains (String query) {
-        throw new UnsupportedOperationException();
+    	
+        query = normalizeTerm(query);
+        char[] characters = strToChars(query); //creates character array
+        int index = 0;
+        TTNode current = this.root;
+        if (empty()) {
+        	return false;
+        }
+        while (current != null) { //iterates through char array and compares to the current node as long as node != null
+        	if (characters[index] == current.letter) {
+        		if (index == characters.length - 1) { //compares if word end
+        			if (current.wordEnd) {
+        			return true;
+        		} else {
+        			return false;
+        	    }
+        		}
+        		index++;
+        		current = current.mid; //updates node
+        		
+        	} else {
+        		int comparison = compareChars(characters[index], current.letter); //moves to next potential word branch
+        				
+        		if (comparison < 0) {
+        			current = current.left;
+        		} else {
+        			current = current.right;
+        		}
+        		
+        	}
+        }
+        return false; 
     }
     
-    public String textFill (String query) {
-        throw new UnsupportedOperationException();
+    public String textFill (String query) { //finishes string with what query is the prefix of
+        
+        int index = 0;
+        String fill = "";
+        fill = textFillHelp(query, index, this.root, fill); //calls helper method
+        return fill;
     }
     
-    public List<String> getSortedList () {
-        throw new UnsupportedOperationException();
+    public List<String> getSortedList () { //returns an array list of all words in the tree
+    	String s = "";
+    	getSortedHelp(this.root, s); //calls helper method
+        return words;
     }
     
     
@@ -85,7 +132,117 @@ public class TernaryTreeTextFiller implements TextFiller {
     }
     
     // [!] Add your own helper methods here!
+    private char[] strToChars (String s) { //converts string to char[]
+    	char[] c = new char[s.length()];
+    	for (int i = 0; i < s.length(); i++) {
+    		c[i] = s.charAt(i);
+    	}
+    	return c;
+    }
     
+     
+    
+    private TTNode build (String toAdd, TTNode current, int index) { //add helper method
+		
+		
+		if (current == null) {
+			boolean endChar = index >= toAdd.length()-1;
+    		current = new TTNode(toAdd.charAt(index), endChar);
+    		
+    		if (endChar) { //ends add if endChar == true
+    			this.size++;
+    			return current;
+    		}
+    		
+    	}
+		int comparison = compareChars(toAdd.charAt(index), current.letter); // compares characters
+		if (comparison < 0) {
+			current.left = build(toAdd, current.left, index); //adds word to the left of the current node
+		} else if (comparison > 0){
+			current.right = build(toAdd, current.right, index); //adds word to the right of the current node
+		} else {
+			current.mid = build(toAdd, current.mid, index+1);//adds word to the mid of the current node
+		}
+		return current;
+    }
+    	
+    // helper method for textFill
+    private String textFillHelp(String query, int index, TTNode current, String fill){ 
+    	char[] characters = strToChars(query);
+    	int length = characters.length;
+    	if (!prefixCheck(query)) { //checks if the string is in the tree 
+    		return null;
+    	}
+    	if (empty()) {
+    		return fill;
+    	}
+    	
+    	if (index >= length-1 && compareChars(characters[index], current.letter) == 0) { //fills in the rest of the word outside of query
+    		while (!current.wordEnd) {
+    			fill = fill + current.letter;
+    			current = current.mid;
+    		}
+    		fill = fill + current.letter;
+    		return fill;
+    	}
+    	
+    	int comparison = compareChars(characters[index], current.letter); 
+    	//adds query to list once found in the tree
+    	if (comparison == 0) {
+    		fill = fill + current.letter;
+    		return textFillHelp(query, index + 1, current.mid, fill);
+    	} else if (comparison < 0) {
+    		return textFillHelp(query, index, current.left, fill);
+    	} else {
+    		return textFillHelp(query, index, current.right, fill);
+    	} 
+    }
+    
+    // helper method for getSortedList
+    private void getSortedHelp(TTNode current, String s) {
+    	if (current == null) {
+    		return;
+    	} 
+    	getSortedHelp(current.left, s ); //goes to left most branch 
+    	if (current.wordEnd) { // adds completed word to list
+    		words.add(s+current.letter);
+    	}
+    	getSortedHelp(current.mid, s+current.letter); // adds to string going down the mid pointer of the nodes
+    	getSortedHelp(current.right, s); //moves to the right most branches
+    	
+    }
+    
+    // helper method to check if string exists in tree
+    private boolean prefixCheck(String query) {
+    	query = normalizeTerm(query);
+        char[] characters = strToChars(query);
+        int index = 0;
+        TTNode current = this.root;
+        if (empty()) {
+        	return false;
+        }
+        while (current != null) {
+        	if (characters[index] == current.letter) {
+        		if (index == characters.length - 1) {
+        		    return true;
+        		}
+        		index++;
+        		current = current.mid;
+        		
+        	} else {
+        		int comparison = compareChars(characters[index], current.letter);
+        				
+        		if (comparison < 0) {
+        			current = current.left;
+        		} else {
+        			current = current.right;
+        		}
+        		
+        	}
+        }
+        return false;
+    }
+     
     
 
     
